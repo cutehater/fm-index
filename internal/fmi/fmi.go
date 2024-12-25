@@ -66,24 +66,7 @@ func (fmIndex *FMIndex) Transform(sequence []byte) ([]byte, error) {
 	return fmIndex.BWTLast, nil
 }
 
-func (fmIndex *FMIndex) LastToFirst(index int) int {
-	letter := fmIndex.BWTLast[index]
-	return fmIndex.LexicallySmallerCharCount[letter] + int(fmIndex.Occurrences[letter][index])
-}
-
-func (fmIndex *FMIndex) nextLetterInAlphabet(currentLetter byte) byte {
-	for i, letter := range fmIndex.Alphabet {
-		if letter == currentLetter {
-			if i < len(fmIndex.Alphabet)-1 {
-				return fmIndex.Alphabet[i+1]
-			}
-			return letter
-		}
-	}
-	return 0
-}
-
-func (fmIndex *FMIndex) Locate(pattern []byte, checkMatchOnly bool) ([]int, error) {
+func (fmIndex *FMIndex) Locate(pattern []byte) ([]int, error) {
 	if len(pattern) == 0 {
 		return nil, nil
 	}
@@ -160,30 +143,18 @@ func computeLexicallySmallerCharCount(firstColumn []byte) []int {
 
 func computeOccurrences(bwt []byte, letters []byte) [][]int32 {
 	occurences := make([][]int32, 128)
-	for _, letter := range letters {
-		first := make([]int32, 1, len(bwt))
-		first[0] = 0
-		occurences[letter] = first
+	for i := range occurences {
+		occurences[i] = make([]int32, len(bwt))
 	}
-	t := make([]int32, 1, len(bwt))
-	t[0] = 1
-	occurences[bwt[0]] = t
-	var letter byte
-	var key, letterInt int
-	var values []int32
-	for _, letter = range bwt[1:] {
-		letterInt = int(letter)
-		for key, values = range occurences {
-			if values == nil {
-				continue
-			}
 
-			if key == letterInt {
-				values = append(values, values[len(values)-1]+1)
-			} else {
-				values = append(values, values[len(values)-1])
+	for i, letter := range bwt {
+		if i > 0 {
+			for j := range occurences {
+				occurences[j][i] = occurences[j][i-1]
 			}
 		}
+		occurences[letter][i]++
 	}
+
 	return occurences
 }
