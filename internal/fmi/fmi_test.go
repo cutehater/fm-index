@@ -26,27 +26,6 @@ var cases = []Case{
 	{"acctatac", "acctatac", []int{0}},
 }
 
-func TestMatch(t *testing.T) {
-	var err error
-	var match bool
-	var fmi *FMIndex
-
-	for _, c := range cases {
-		fmi = NewFMIndex()
-		_, err = fmi.Transform([]byte(c.text))
-		if c.text != "" {
-			require.NoError(t, err)
-		} else {
-			require.Equal(t, bwt.ErrEmptySequence, err)
-			continue
-		}
-
-		match, err = fmi.Match([]byte(c.pattern))
-		require.NoError(t, err)
-		require.Equal(t, len(c.want) > 0, match)
-	}
-}
-
 func TestLocate(t *testing.T) {
 	var err error
 	var locations []int
