@@ -10,8 +10,7 @@ import (
 type FMIndex struct {
 	EndSymbol                 byte
 	SuffixArray               []int
-	BWTLast                   []byte
-	BWTFirst                  []byte
+	BWT                       []byte
 	Alphabet                  []byte
 	LetterCounts              []int
 	LexicallySmallerCharCount []int
@@ -30,23 +29,15 @@ func (fmIndex *FMIndex) Transform(sequence []byte) ([]byte, error) {
 	}
 	var err error
 
-	suffixArray := bwt.SuffixArray(sequence)
-	fmIndex.SuffixArray = suffixArray
+	fmIndex.SuffixArray = bwt.GetSuffixArray(sequence)
 
-	fmIndex.BWTLast, err = bwt.FromSuffixArray(sequence, fmIndex.SuffixArray, fmIndex.EndSymbol)
+	fmIndex.BWT, err = bwt.Transform(sequence, fmIndex.EndSymbol)
 	if err != nil {
 		return nil, err
 	}
 
-	firstColumn := make([]byte, len(sequence)+1)
-	firstColumn[0] = fmIndex.EndSymbol
-	for i := 1; i <= len(sequence); i++ {
-		firstColumn[i] = sequence[suffixArray[i]]
-	}
-	fmIndex.BWTFirst = firstColumn
-
 	letterCounts := make([]int, 128)
-	for _, letter := range fmIndex.BWTLast {
+	for _, letter := range fmIndex.BWT {
 		letterCounts[letter]++
 	}
 	letterCounts[fmIndex.EndSymbol] = 0
@@ -60,10 +51,10 @@ func (fmIndex *FMIndex) Transform(sequence []byte) ([]byte, error) {
 	}
 	fmIndex.Alphabet = alphabet
 
-	fmIndex.LexicallySmallerCharCount = computeLexicallySmallerCharCount(fmIndex.BWTFirst)
-	fmIndex.Occurrences = computeOccurrences(fmIndex.BWTLast, fmIndex.Alphabet)
+	fmIndex.LexicallySmallerCharCount = computeLexicallySmallerCharCount(fmIndex.BWT)
+	fmIndex.Occurrences = computeOccurrences(fmIndex.BWT, fmIndex.Alphabet)
 
-	return fmIndex.BWTLast, nil
+	return fmIndex.BWT, nil
 }
 
 func (fmIndex *FMIndex) Locate(pattern []byte) ([]int, error) {
@@ -77,7 +68,7 @@ func (fmIndex *FMIndex) Locate(pattern []byte) ([]int, error) {
 		}
 	}
 
-	n := len(fmIndex.BWTLast)
+	n := len(fmIndex.BWT)
 	var matches Stack
 	matches.Put(sMatch{query: pattern, start: 0, end: n - 1})
 
@@ -118,10 +109,9 @@ func (fmIndex *FMIndex) Locate(pattern []byte) ([]int, error) {
 func (fmIndex *FMIndex) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("EndSymbol: %c\n", fmIndex.EndSymbol))
-	buffer.WriteString(fmt.Sprintf("BWTLast: %s\n", string(fmIndex.BWTLast)))
+	buffer.WriteString(fmt.Sprintf("BWT: %s\n", string(fmIndex.BWT)))
 	buffer.WriteString(fmt.Sprintf("Alphabet: %s\n", string(fmIndex.Alphabet)))
 	buffer.WriteString("First Column:\n")
-	buffer.WriteString(string(fmIndex.BWTFirst) + "\n")
 	buffer.WriteString("Lexically Smaller Character Count:\n")
 	for _, letter := range fmIndex.Alphabet {
 		buffer.WriteString(fmt.Sprintf("  %c: %d\n", letter, fmIndex.LexicallySmallerCharCount[letter]))
@@ -129,15 +119,18 @@ func (fmIndex *FMIndex) String() string {
 	return buffer.String()
 }
 
-func computeLexicallySmallerCharCount(firstColumn []byte) []int {
+func computeLexicallySmallerCharCount(bwt []byte) []int {
 	res := make([]int, 128)
-	count := 0
-	for _, c := range firstColumn {
-		if res[c] == 0 {
-			res[c] = count
-		}
-		count++
+	for _, c := range bwt {
+		res[c]++
 	}
+	for i := 1; i < len(res); i++ {
+		res[i] = res[i] + res[i-1]
+	}
+	for i := len(res) - 1; i > 0; i-- {
+		res[i] = res[i-1]
+	}
+	res[0] = 0
 	return res
 }
 

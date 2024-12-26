@@ -23,8 +23,8 @@ func Transform(sequence []byte, endSymbol byte) ([]byte, error) {
 		}
 	}
 
-	suffixArray := SuffixArray(sequence)
-	bwt, err := FromSuffixArray(sequence, suffixArray, endSymbol)
+	sa := GetSuffixArray(sequence)
+	bwt, err := fromSuffixArray(sequence, sa, endSymbol)
 	return bwt, err
 }
 
@@ -66,7 +66,7 @@ func InverseTransform(transformedSequence []byte, endSymbol byte) []byte {
 	return res
 }
 
-func SuffixArray(sequence []byte) []int {
+func GetSuffixArray(sequence []byte) []int {
 	suffixArray := suffixarray.New(sequence)
 	tmp := reflect.ValueOf(suffixArray).Elem().FieldByName("sa").FieldByIndex([]int{0})
 	res := make([]int, len(sequence)+1)
@@ -77,7 +77,7 @@ func SuffixArray(sequence []byte) []int {
 	return res
 }
 
-func FromSuffixArray(sequence []byte, suffixArray []int, endSymbol byte) ([]byte, error) {
+func fromSuffixArray(sequence []byte, suffixArray []int, endSymbol byte) ([]byte, error) {
 	if len(sequence) == 0 {
 		return nil, ErrEmptySequence
 	}
